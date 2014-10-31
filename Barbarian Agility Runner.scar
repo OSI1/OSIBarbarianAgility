@@ -2,7 +2,7 @@
 # ScriptName   = OSI Barbarian Agility
 # Author       = Wanted
 # Description  = Runs Barbarian Agility Course. Auto-eater. ~13k xp/h
-# Version      = 1.0
+# Version      = 1.01
 # Date         = October 30th, 2014
 
 # Comments     = Drag and drop cross hairs to runescape.
@@ -10,7 +10,7 @@
                  If you're using OSBuddy you may need to turn off screen overlays.
                  Settings tab make sure you're on brightest color settings.
                  Have on split private chat or off as game only chat view is needed.
-                 Make sure you set DeclarePlayers (line 93), adjust the other settings (line 30).
+                 Make sure you set DeclarePlayers (line 90), adjust the other settings (line 30).
 
 # Requirements = SCAR 3.40.0 or newer
                  Latest OSI 
@@ -30,19 +30,16 @@ program BarbarianAgilityCourseRunner;
 
 const
   EatFood             = True;      // Eats food when low
-  MinHPLeft           = 20;        // If HP reaches this then eat/logout
-  MaxHPLeft           = 50;        // HP amount to stop eating food at
-
+  MinHPLeft           = 0.33;      // (%/Your HP lvl) If HP reaches this then eat/logout. PERCENTAGE not HP i.e. 16/50 = 0.33 !
+  MaxHPLeft           = 0.80;      // (%/Your HP lvl) HP amount to stop eating food at
   UseAntiBan          = True;      // Use Anti-ban? 
   AntiBanMin          = 2;         // Minimum minutes before performing anti-ban
   AntiBanMax          = 10;        // Maximum minutes before performing anti-ban
-  
   TakeBreaks          = False;     // Take breaks?  
   MinTimeBeforeBreak  = 30;        // Minimum minutes before taking break.
   MaxTimeBeforeBreak  = 120;       // Maximum minutes before taking break.
   MinBreakTime        = 3;         // Minimum minutes break will last.
   MaxBreakTime        = 12;        // Maximum minutes break will last.  
-
   PlayRandomSound     = True;      // Use sounds to alert script user.
   AlertNewPMs         = True;      // Players coin sound if new PM (split private chat on only)
 
@@ -51,7 +48,7 @@ const
 *******************************************************************************}
 
 const // Don't change these
-  Script_Version = '1.00';
+  Script_Version = '1.01';
   Script_Runs = 0;
   Script_Time = 1;
   Script_Laps = 2;
@@ -105,7 +102,6 @@ begin
 
   //<-- To use more players, uncomment this section and change SetLength(Players, CHANGE)
   //to match with the current amount of players declared. Computers count up from 0 ;-)
-
 {
   with Players[1] do
   begin
@@ -159,6 +155,23 @@ begin
 
 {
   with Players[4] do
+  begin
+    Name := '';                    // Characters full RS login username.
+    Pass := '';                    // Characters RS password.
+    Active := True;                // Use player?
+    Extendeds[Player_Max_Time] := 14;            // Max number of hours to use this player for.
+    Extendeds[Player_Laps_Per_Round] := 60;      // Number of laps to do before switching players if using multiple players. Will switch back after.
+    Extendeds[Player_Max_Laps] := 999999;        // Max number of laps to do on this player.
+    Extendeds[Player_Max_Exp] := 200000000;      // Max amount of exp to gain on this player
+    Extendeds[Player_Target_Exp] := 200000000;   // Stop if your player reaches reaches this total agility xp.
+    Extendeds[Player_Max_Agility_Lvls] := 99;    // Stop if your player gains this many agility levels.
+    Extendeds[Player_Target_Agility_Lvl] := 100; // Stop if your player reaches this agility level.
+    TIA[0] := [];                  // Non-food inv slots. Script will setup automatically
+  end;
+}
+
+{
+  with Players[5] do
   begin
     Name := '';                    // Characters full RS login username.
     Pass := '';                    // Characters RS password.
@@ -324,8 +337,9 @@ begin
     Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Exp] := GetXp(Skill_Agility, False);
   if (Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Lvl] = 0) then 
     Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Lvl] := Players[CurrentPlayer].Level[Skill_Agility];
-  WriteLn('Current agility level: ' + IntToStr(Players[CurrentPlayer].Level[Skill_Agility]) + ', Current XP: ' + FloatToStr(Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Exp] + Players[CurrentPlayer].Extendeds[Player_Total_Exp])); 
+  WriteLn('Current hitpoints level: ' + IntToStr(Players[CurrentPlayer].Level[Skill_Hitpoints]) + ', current agility level: ' + IntToStr(Players[CurrentPlayer].Level[Skill_Agility]) + ', current XP: ' + FloatToStr(Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Exp] + Players[CurrentPlayer].Extendeds[Player_Total_Exp])); 
   MSGPixels := CountColor(16776960, MSX1, 261, MSX2 - 65, MSY2);
+  ToggleRun(True);
   WriteLn('Player is set up.');
   WaitRR(184, 308);
   if (TimeStarted = 0) then
@@ -429,24 +443,22 @@ begin
   end;
   BreakIfNeeded; 
   CurrentHP := GetMMLevel(Skill_Hitpoints);
-  if (CurrentHP <= MinHPLeft) then
+  if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) <= MinHPLeft) then
   begin
     if (SetGameTab(Tab_Inv)) then
       repeat
-        if (CurrentHP >= Players[CurrentPlayer].Level[Skill_Hitpoints]) then
+        if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
           Break;
         BackToStart := False; 
         for I := 0 to 27 do
         begin
-          if (CurrentHP >= Players[CurrentPlayer].Level[Skill_Hitpoints]) then
-            Break;
-          if (CurrentHP >= MaxHPLeft) then
+          if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
             Break;
            if (TIAContains(Players[CurrentPlayer].TIA[0], I)) then
              Continue;       
           if (InvItemExists(I, False)) then
             repeat
-              if (CurrentHP >= Players[CurrentPlayer].Level[Skill_Hitpoints]) then
+              if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
                 Break;
               MouseInvItem(I, MoveTo, False);
               if (not (UpTextContains('Eat'))) then
@@ -463,7 +475,7 @@ begin
               repeat
                 WaitRR(50, 100);
                 CurrentHP := GetMMLevel(Skill_Hitpoints);
-                if (CurrentHP >= Players[CurrentPlayer].Level[Skill_Hitpoints]) then
+                if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
                   Break;
               until ((CheckTimer(T)) or (CurrentHP <> PreviousHP) or (not (InvItemExists(I, False))));
               if (InvCount(False) = C) then
@@ -471,12 +483,12 @@ begin
                 BackToStart := True;
                 Break;
               end;
-            until ((not (InvItemExists(I, False)) or (CurrentHP >= MaxHPLeft)));
+            until (((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) or (not (InvItemExists(I, False))));
           if (BackToStart) then
             Break;       
         end;            
       until (not (BackToStart));      
-    if (CurrentHP <= MinHPLeft) then
+    if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) <= MinHPLeft) then
     begin
       ReportScriptUser('Player out of food!', 0);
       Players[CurrentPlayer].Loc := 'Player out of food!';
@@ -692,7 +704,8 @@ begin
       Exit; 
     OverrideDist := True;
     Players[CurrentPlayer].Loc := 'Ropeswing'; 
-  end; 
+  end;
+  ToggleRun(True); 
   if ((Players[CurrentPlayer].Loc <> 'Initiated') and (Players[CurrentPlayer].Loc <> 'Ropeswing')) then
     Exit;
   repeat
@@ -1322,40 +1335,3 @@ begin
   WriteLn('All players exhausted.');
   TerminateScript; 
 end.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//Script OSI Barbarian Agility by Wanted http://scar-divi.com
