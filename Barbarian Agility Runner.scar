@@ -1,0 +1,1361 @@
+{.Script Info:  
+# ScriptName   = OSI Barbarian Agility
+# Author       = Wanted
+# Description  = Runs Barbarian Agility Course. Auto-eater. ~13k xp/h
+# Version      = 1.0
+# Date         = October 30th, 2014
+
+# Comments     = Drag and drop cross hairs to runescape.
+                 Food in invetory. Logs out when low on hp and no food left.
+                 If you're using OSBuddy you may need to turn off screen overlays.
+                 Settings tab make sure you're on brightest color settings.
+                 Have on split private chat or off as game only chat view is needed.
+                 Make sure you set DeclarePlayers (line 93), adjust the other settings (line 30).
+
+# Requirements = SCAR 3.40.0 or newer
+                 Latest OSI 
+                 More scripts can be found at scar-divi.com
+/Script Info}
+
+program BarbarianAgilityCourseRunner;
+
+{$DEFINE RS07}
+
+{$I OSI\OSI.scar}
+//{$I OSI\Divi\Misc\Debug.scar} // If you want to see the inner workings
+
+{*******************************************************************************
+                                  BEGIN SETUP
+*******************************************************************************}
+
+const
+  EatFood             = True;      // Eats food when low
+  MinHPLeft           = 20;        // If HP reaches this then eat/logout
+  MaxHPLeft           = 50;        // HP amount to stop eating food at
+
+  UseAntiBan          = True;      // Use Anti-ban? 
+  AntiBanMin          = 2;         // Minimum minutes before performing anti-ban
+  AntiBanMax          = 10;        // Maximum minutes before performing anti-ban
+  
+  TakeBreaks          = False;     // Take breaks?  
+  MinTimeBeforeBreak  = 30;        // Minimum minutes before taking break.
+  MaxTimeBeforeBreak  = 120;       // Maximum minutes before taking break.
+  MinBreakTime        = 3;         // Minimum minutes break will last.
+  MaxBreakTime        = 12;        // Maximum minutes break will last.  
+
+  PlayRandomSound     = True;      // Use sounds to alert script user.
+  AlertNewPMs         = True;      // Players coin sound if new PM (split private chat on only)
+
+{*******************************************************************************
+                                    INDEXES
+*******************************************************************************}
+
+const // Don't change these
+  Script_Version = '1.00';
+  Script_Runs = 0;
+  Script_Time = 1;
+  Script_Laps = 2;
+  Script_Exp = 3;
+  Player_Max_Time = 0;
+  Player_Laps_Per_Round = 1;
+  Player_Max_Laps = 2;
+  Player_Max_Exp = 3;
+  Player_Target_Exp = 4;
+  Player_Max_Agility_Lvls = 5;
+  Player_Target_Agility_Lvl = 6;
+  Player_Initial_Agility_Lvl = 7;
+  Player_Initial_Agility_Exp = 8;
+  Player_Total_Laps = 9;
+  Player_Total_Exp = 10;
+  
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure DeclarePlayers;
+Contributors: Wanted
+Description: Here you will need to set up your players
+Date Created: November 6th, 2011. By Wanted. RS2 Build 675.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure DeclarePlayers;
+var
+  I: LongInt;
+begin
+  SetLength(Players, 1); // Adjust length to add more players
+  for I := 0 to High(Players) do
+  begin                            // Do not mess with these unless you really know what you're doing.
+    Players[I].Loc := 'Not started'; 
+    SetLength(Players[I].TIA, 1);
+    SetLength(Players[I].Extendeds, 11); 
+  end;
+
+  with Players[0] do
+  begin
+    Name := '';                    // Characters full RS login username.
+    Pass := '';                    // Characters RS password.
+    Active := True;                // Use player?
+    Extendeds[Player_Max_Time] := 14;            // Max number of hours to use this player for.
+    Extendeds[Player_Laps_Per_Round] := 60;      // Number of laps to do before switching players if using multiple players. Will switch back after.
+    Extendeds[Player_Max_Laps] := 999999;        // Max number of laps to do on this player.
+    Extendeds[Player_Max_Exp] := 200000000;      // Max amount of exp to gain on this player
+    Extendeds[Player_Target_Exp] := 200000000;   // Stop if your player reaches reaches this total agility xp.
+    Extendeds[Player_Max_Agility_Lvls] := 99;    // Stop if your player gains this many agility levels.
+    Extendeds[Player_Target_Agility_Lvl] := 100; // Stop if your player reaches this agility level.
+    TIA[0] := [];                  // Non-food inv slots. Script will setup automatically
+  end;
+
+  //<-- To use more players, uncomment this section and change SetLength(Players, CHANGE)
+  //to match with the current amount of players declared. Computers count up from 0 ;-)
+
+{
+  with Players[1] do
+  begin
+    Name := '';                    // Characters full RS login username.
+    Pass := '';                    // Characters RS password.
+    Active := True;                // Use player?
+    Extendeds[Player_Max_Time] := 14;            // Max number of hours to use this player for.
+    Extendeds[Player_Laps_Per_Round] := 60;      // Number of laps to do before switching players if using multiple players. Will switch back after.
+    Extendeds[Player_Max_Laps] := 999999;        // Max number of laps to do on this player.
+    Extendeds[Player_Max_Exp] := 200000000;      // Max amount of exp to gain on this player
+    Extendeds[Player_Target_Exp] := 200000000;   // Stop if your player reaches reaches this total agility xp.
+    Extendeds[Player_Max_Agility_Lvls] := 99;    // Stop if your player gains this many agility levels.
+    Extendeds[Player_Target_Agility_Lvl] := 100; // Stop if your player reaches this agility level.
+    TIA[0] := [];                  // Non-food inv slots. Script will setup automatically
+  end;
+}
+
+{
+  with Players[2] do
+  begin
+    Name := '';                    // Characters full RS login username.
+    Pass := '';                    // Characters RS password.
+    Active := True;                // Use player?
+    Extendeds[Player_Max_Time] := 14;            // Max number of hours to use this player for.
+    Extendeds[Player_Laps_Per_Round] := 60;      // Number of laps to do before switching players if using multiple players. Will switch back after.
+    Extendeds[Player_Max_Laps] := 999999;        // Max number of laps to do on this player.
+    Extendeds[Player_Max_Exp] := 200000000;      // Max amount of exp to gain on this player
+    Extendeds[Player_Target_Exp] := 200000000;   // Stop if your player reaches reaches this total agility xp.
+    Extendeds[Player_Max_Agility_Lvls] := 99;    // Stop if your player gains this many agility levels.
+    Extendeds[Player_Target_Agility_Lvl] := 100; // Stop if your player reaches this agility level.
+    TIA[0] := [];                  // Non-food inv slots. Script will setup automatically
+  end;
+}
+
+{
+  with Players[3] do
+  begin
+    Name := '';                    // Characters full RS login username.
+    Pass := '';                    // Characters RS password.
+    Active := True;                // Use player?
+    Extendeds[Player_Max_Time] := 14;            // Max number of hours to use this player for.
+    Extendeds[Player_Laps_Per_Round] := 60;      // Number of laps to do before switching players if using multiple players. Will switch back after.
+    Extendeds[Player_Max_Laps] := 999999;        // Max number of laps to do on this player.
+    Extendeds[Player_Max_Exp] := 200000000;      // Max amount of exp to gain on this player
+    Extendeds[Player_Target_Exp] := 200000000;   // Stop if your player reaches reaches this total agility xp.
+    Extendeds[Player_Max_Agility_Lvls] := 99;    // Stop if your player gains this many agility levels.
+    Extendeds[Player_Target_Agility_Lvl] := 100; // Stop if your player reaches this agility level.
+    TIA[0] := [];                  // Non-food inv slots. Script will setup automatically
+  end;
+}
+
+{
+  with Players[4] do
+  begin
+    Name := '';                    // Characters full RS login username.
+    Pass := '';                    // Characters RS password.
+    Active := True;                // Use player?
+    Extendeds[Player_Max_Time] := 14;            // Max number of hours to use this player for.
+    Extendeds[Player_Laps_Per_Round] := 60;      // Number of laps to do before switching players if using multiple players. Will switch back after.
+    Extendeds[Player_Max_Laps] := 999999;        // Max number of laps to do on this player.
+    Extendeds[Player_Max_Exp] := 200000000;      // Max amount of exp to gain on this player
+    Extendeds[Player_Target_Exp] := 200000000;   // Stop if your player reaches reaches this total agility xp.
+    Extendeds[Player_Max_Agility_Lvls] := 99;    // Stop if your player gains this many agility levels.
+    Extendeds[Player_Target_Agility_Lvl] := 100; // Stop if your player reaches this agility level.
+    TIA[0] := [];                  // Non-food inv slots. Script will setup automatically
+  end;
+}
+end;
+
+{*******************************************************************************
+                                   END SETUP                                                                      
+*******************************************************************************}
+
+{*******************************************************************************
+                               GLOBAL VARIABLES
+*******************************************************************************}
+
+{*******************************************************************************
+  Numbers
+*******************************************************************************}
+
+var
+  TimeStarted, AntibanTimer, RandMouseTimer, UntilBreakTimer, MSGPixels: LongInt;
+  Total, TotalScript: array[0..3] of Extended;
+
+{*******************************************************************************
+  Text
+*******************************************************************************}
+
+{*******************************************************************************
+                                    INITIAL                                                                      
+*******************************************************************************}
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure IncTotalScriptVar(Index: Integer; IncA: Extended);
+Contributors: Wanted
+Description: Increases script run and all scripts variable and saves to settings file.
+Date Created: October 30th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure IncTotalScriptVar(Index: Integer; IncA: Extended);
+begin
+  IncE(Total[Index], IncA);
+  IncE(TotalScript[Index], IncA);
+  WriteINI('ScriptTotals', IntToStr(Index), FloatToStr(TotalScript[Index]), ScriptPath + 'BAgility_Settings.ini');
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure ScriptTerminate;
+Contributors: Wanted
+Description: Actions peformed when script is terminated.
+Date Created: October 26th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure ScriptTerminate;
+begin
+  if (Total[Script_Laps] > 0) then
+  begin
+    IncTotalScriptVar(Script_Time, TimeSinceMark(TimeStarted));
+    IncTotalScriptVar(Script_Runs, 1);
+  end;
+  Disguise('SCAR Divi CDE');
+  FreeOSI;
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure InitScript;
+Contributors: Wanted
+Description: Does everything to start the script up.
+Date Created: October 26th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure InitScript;
+var
+  I: Integer;
+begin
+  ClearDebug;
+  Disguise('YouTube - Google Chrome');
+  WriteLn('________        _________  .___        _____          .__.__  .__  __');
+  Wait(100);
+  WriteLn('\_____  \      /   _____/  |   |      /  _  \    ____ |__|  | |__|/  |_ ___.__.');
+  Wait(100);
+  WriteLn(' /   |   \     \_____  \   |   |     /  /_\  \  / ___\|  |  | |  \   __<   |  |');
+  Wait(100);
+  WriteLn('/    |    \    /        \  |   |    /    |    \/ /_/  >  |  |_|  ||  |  \___  |');
+  Wait(100);
+  WriteLn('\_______  / /\/_______  / /\___| /\ \____|__  /\___  /|__|____/__||__|  / ____|');
+  Wait(100);
+  WriteLn('        \/  \/        \/  \/     \/         \//_____/                   \/');
+  Wait(200);
+  WriteLn('   Wanted''s OSI Barbarian Agility Course Runner                 version ' + Script_Version);
+  Wait(200);
+  FindWindowsBySize(GetDesktopWindow, RSPW, RSPH, True); 
+  WaitRR(500, 750);
+  GetClient.Activate;
+  WaitRR(1000, 2000);
+  for I := 0 to 3 do
+    TotalScript[I] := StrToFloatDef(ReadINI('ScriptTotals', IntToStr(I), ScriptPath + 'BAgility_Settings.ini'), 0);
+  SetUpOSI;
+  DeclarePlayers;
+  SetTimer(UntilBreakTimer, (MinTimeBeforeBreak * 60 * 1000) - Random(2123), (MaxTimeBeforeBreak * 60 * 1000) + Random(8213));
+  SetTimer(AntiBanTimer, (AntiBanMin * 60 * 1000) - Random(2123), (AntiBanMax * 60 * 1000) + Random(8213));
+  SetTimer(RandMouseTimer, (60 * 1000 * 2) - Random(2123), (60 * 1000 * 5) + Random(8213));
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure AntiBan;
+Contributors: Wanted
+Description: Performs random human like thing to prevent banning.
+Date Created: October 29th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure AntiBan;
+begin
+  if (not (UseAntiBan)) then
+    Exit;
+  case Random(100) of
+    0..24: SetGameTab(Tab_Stats);
+    25..50: SetGameTab(Random(Tab_Count));
+    50..70: HoverSkill(Skill_Agility, True);
+    71..80: begin
+              MouseBox(RSX1, RSY1, RSX2, RSY2, ClickRight);
+              WaitRR(1524, 4411);
+              ChooseOption('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+            end;
+    81..99: HoverSkill(-1, True);      
+  end;
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure InitPlayer;
+Contributors: Wanted
+Description: Sets up a user for autoing at the barbarian agility course.
+Date Created: October 26th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 29th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure InitPlayer;
+begin
+  if (not (LoggedIn)) then
+    Login;
+  WaitRR(415, 987);
+  if (not (LoggedIn)) then
+    Exit;
+  WriteLn('Setting up player...');
+  SetCompassAngleAndHeight(Dir_North, True);
+  WaitRR(493, 951);
+  SetCurrentChat(Tab_Chat_Game);
+  FixChat;
+  GetAllLevels(True);
+  if (Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Exp] = 0) then
+    Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Exp] := GetXp(Skill_Agility, False);
+  if (Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Lvl] = 0) then 
+    Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Lvl] := Players[CurrentPlayer].Level[Skill_Agility];
+  WriteLn('Current agility level: ' + IntToStr(Players[CurrentPlayer].Level[Skill_Agility]) + ', Current XP: ' + FloatToStr(Players[CurrentPlayer].Extendeds[Player_Initial_Agility_Exp] + Players[CurrentPlayer].Extendeds[Player_Total_Exp])); 
+  MSGPixels := CountColor(16776960, MSX1, 261, MSX2 - 65, MSY2);
+  WriteLn('Player is set up.');
+  WaitRR(184, 308);
+  if (TimeStarted = 0) then
+    TimeStarted := GetSystemTime;
+  if (Players[CurrentPlayer].Loc = 'Not started') then
+    Players[CurrentPlayer].Loc := 'Initiated';  
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure BreakIfNeeded;
+Contributors: Wanted
+Description: Logs out for X amount of time if enough time has passed.
+Date Created: October 29th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure BreakIfNeeded;
+var
+  T: LongInt;
+begin
+  if (not (TakeBreaks)) then
+    Exit;
+  if (not (CheckTimer(UntilBreakTimer))) then
+    Exit;
+  MarkTime(T);
+  WriteLn('Taking scheduled break...');
+  Logout;
+  Sleep(RR((MinBreakTime * 60 * 1000) - Random(2123), (MinBreakTime * 60 * 1000* 60 * 1000) + Random(8213)));
+  SetTimer(UntilBreakTimer, (MinTimeBeforeBreak * 60 * 1000) - Random(2123), (MaxTimeBeforeBreak * 60 * 1000) + Random(8213));
+  WriteLn('Break over');
+  InitPlayer;
+  IncEx(TimeStarted, TimeSinceMark(T));
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure ReportScriptUser(MSG: string; WhichSound: Integer);
+Contributors: Wanted
+Description: Alerts script user of msg.
+Date Created: October 28th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 28th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure ReportScriptUser(MSG: string; WhichSound: Integer);
+begin
+  WriteLn(MSG);    
+  case WhichSound of
+    0: PlaySound(IncludesPath + '\OSI\Divi\Misc\RandomSound.WAV'); 
+    1: PlaySound(IncludesPath + '\OSI\Divi\Misc\Coin.WAV'); 
+    2: PlaySound(IncludesPath + '\OSI\Divi\Misc\Win.WAV');   
+  end;
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+function FloatToStrEx(E: Extended): string;
+Contributors: Wanted
+Description: Converts a float to smaller float string length wise.
+Date Created: November 6th, 2011. By Wanted. RS2 Build 675.
+Last Modified: November 6th, 2011. By Wanted. RS2 Build 675.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+function FloatToStrEx(E: Extended): string;
+begin
+  Result := (IntToStr(Floor(E)) + Copy(FloatToStr(DecRet(E)), 2, 3));
+end;  
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+function HumanCheck: Boolean;
+Contributors: Wanted
+Description: Checks timers and HP level. Eats food if needed. Performs antiban. 
+             Takes breaks etc. Returns true if logged out.
+Date Created: October 29th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+function HumanCheck: Boolean;
+var
+  I, T, PreviousHP, CurrentHP, C: Integer;
+  BackToStart: Boolean;
+begin
+  Status('RandMouse Timer ' + MSToTimeEx(RandMouseTimer - GetSystemTime) +
+         ' - AntiBan Timer ' + MSToTimeEx(AntiBanTimer - GetSystemTime) +
+         ' - Time Running ' + MSToTimeEx(GetTimeRunning) +
+         ' - Laps ' + FloatToStr(Total[Script_Laps]) +
+         ' - Exp ' + FloatToStr(Total[Script_Exp]) +
+         ' - XP/H ' + FloatToStrEx((3600 * Total[Script_Exp]) / (1 + (TimeSinceMark(TimeStarted) div 1000))));  
+  Result := False;
+  if (CountColor(16776960, MSX1, 261, MSX2 - 65, MSY2) <> MSGPixels) then
+  begin
+    ReportScriptUser('New PM!', 1);
+    MSGPixels := CountColor(16776960, MSX1, 261, MSX2 - 65, MSY2);
+  end;
+  if (CheckTimer(AntiBanTimer)) then
+  begin
+    AntiBan;
+    SetTimer(AntiBanTimer, (AntiBanMin * 60 * 1000) - Random(2123), (AntiBanMax * 60 * 1000) + Random(8213));
+  end;
+  if (CheckTimer(RandMouseTimer)) then
+  begin
+    MouseBox(RSX1, RSY1, RSX2, RSY2, MoveTo);
+    SetTimer(RandMouseTimer, (60 * 1000 * 2) - Random(2123), (60 * 1000 * 5) + Random(8213));
+  end;
+  BreakIfNeeded; 
+  CurrentHP := GetMMLevel(Skill_Hitpoints);
+  if (CurrentHP <= MinHPLeft) then
+  begin
+    if (SetGameTab(Tab_Inv)) then
+      repeat
+        if (CurrentHP >= Players[CurrentPlayer].Level[Skill_Hitpoints]) then
+          Break;
+        BackToStart := False; 
+        for I := 0 to 27 do
+        begin
+          if (CurrentHP >= Players[CurrentPlayer].Level[Skill_Hitpoints]) then
+            Break;
+          if (CurrentHP >= MaxHPLeft) then
+            Break;
+           if (TIAContains(Players[CurrentPlayer].TIA[0], I)) then
+             Continue;       
+          if (InvItemExists(I, False)) then
+            repeat
+              if (CurrentHP >= Players[CurrentPlayer].Level[Skill_Hitpoints]) then
+                Break;
+              MouseInvItem(I, MoveTo, False);
+              if (not (UpTextContains('Eat'))) then
+              begin
+                SetLength(Players[CurrentPlayer].TIA[0], Length(Players[CurrentPlayer].TIA[0]) + 1);
+                Players[CurrentPlayer].TIA[0][High(Players[CurrentPlayer].TIA[0])] := I;
+                Break;      
+              end;
+              C := InvCount(False);
+              PreviousHP := CurrentHP;
+              MouseCurrentPos(True);
+              SetTimer(T, 3000, 4000);
+              WaitRR(812, 903);
+              repeat
+                WaitRR(50, 100);
+                CurrentHP := GetMMLevel(Skill_Hitpoints);
+                if (CurrentHP >= Players[CurrentPlayer].Level[Skill_Hitpoints]) then
+                  Break;
+              until ((CheckTimer(T)) or (CurrentHP <> PreviousHP) or (not (InvItemExists(I, False))));
+              if (InvCount(False) = C) then
+              begin
+                BackToStart := True;
+                Break;
+              end;
+            until ((not (InvItemExists(I, False)) or (CurrentHP >= MaxHPLeft)));
+          if (BackToStart) then
+            Break;       
+        end;            
+      until (not (BackToStart));      
+    if (CurrentHP <= MinHPLeft) then
+    begin
+      ReportScriptUser('Player out of food!', 0);
+      Players[CurrentPlayer].Loc := 'Player out of food!';
+      Result := True;       
+    end; 
+    if (Random(5) < 2) then
+      AntiBan;    
+  end;
+  if (Players[CurrentPlayer].Worked > (Players[CurrentPlayer].Extendeds[Player_Max_Time] * 60 * 60 * 1000)) then
+  begin
+    ReportScriptUser('Player time limit reached!', 2);
+    Players[CurrentPlayer].Loc := 'Time limit reached';
+    Result := True;
+  end;
+  Players[CurrentPlayer].Level[Skill_Agility] := ConvertXPToLevel(Round(Players[I].Extendeds[Player_Total_Exp] + Players[I].Extendeds[Player_Initial_Agility_Exp])); 
+  if (Players[CurrentPlayer].Level[Skill_Agility] >= Players[CurrentPlayer].Extendeds[Player_Target_Agility_Lvl]) then
+  begin
+    ReportScriptUser('Player target agility level reached!', 2);
+    Players[CurrentPlayer].Loc := 'Target agility level reached';
+    Result := True;
+  end;
+  if (Players[I].Extendeds[Player_Total_Exp] >= Players[I].Extendeds[Player_Max_Exp]) then
+  begin
+    ReportScriptUser('Player max agility xp gain reached!', 2);
+    Players[CurrentPlayer].Loc := 'Player max agility xp gain reached';
+    Result := True;
+  end;
+  if (Players[I].Extendeds[Player_Total_Exp] + Players[I].Extendeds[Player_Initial_Agility_Exp] >= Players[I].Extendeds[Player_Target_Exp]) then
+  begin
+    ReportScriptUser('Player target agility xp reached!', 2);
+    Players[CurrentPlayer].Loc := 'Player target agility xp reached';
+    Result := True;
+  end;
+  if (Players[CurrentPlayer].Level[Skill_Agility] - Players[I].Extendeds[Player_Initial_Agility_Lvl] >= Players[I].Extendeds[Player_Max_Agility_Lvls]) then
+  begin
+    ReportScriptUser('Player max agility level gain reached!', 2);
+    Players[CurrentPlayer].Loc := 'Player max agility level gain reached';
+    Result := True;
+  end;
+  if (Players[I].Extendeds[Player_Total_Laps] >= Players[I].Extendeds[Player_Max_Laps]) then
+  begin
+    ReportScriptUser('Player max laps completed!', 2);
+    Players[CurrentPlayer].Loc := 'Player max laps completed!';
+    Result := True;
+  end;
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure ProgressReport;
+Contributors: Wanted
+Description: An elabaorate progress report, for grins mostly.
+Date Created: October 30th, 2011. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2011. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure ProgressReport;
+var
+  TCounter, I: LongInt;
+  WeAreActive: string;
+begin 
+  WriteLn('Displaying progress report...');
+  TCounter := (1 + (TimeSinceMark(TimeStarted) div 1000));
+  if (TotalScript[Script_Runs] = 0) then
+    TotalScript[Script_Runs] := 1;
+  WriteLn('');
+  WriteLn('<------===== OSI Barbarian Agility Runner ver ' + Script_Version + ' Progress Report =====------>');
+  WriteLn('                 Script run # ' + FloatToStr(TotalScript[Script_Runs]) + ' - ' + TheDate(0) + ' - ' + TheTime + '.');
+  WriteLn('  Total run time:                          ' + STimeRunning);
+  if (TotalScript[Script_Runs] > 1) then
+    WriteLn('  Total run time using script:             ' + MSToTime(Round(TotalScript[Script_Time])));
+  WriteLn('  Laps done this script run:               ' + FloatToStr(Total[Script_Laps]));
+  if (TotalScript[Script_Runs] > 1) then
+    WriteLn('  Laps done using script:                  ' + FloatToStr(TotalScript[Script_Laps]));                                                 
+  WriteLn('  Laps per hour this script run:           ' + FloatToStrEx((3600 * Total[Script_Laps]) / TCounter)); 
+  WriteLn('  Agility Exp this script run:             ' + FloatToStr(Total[Script_Exp]));
+  if (TotalScript[Script_Runs] > 1) then
+    WriteLn('  Agility Exp gained using script:         ' + FloatToStr(TotalScript[Script_Exp]));     
+  WriteLn('  Agility Exp per hour this script run:    ' + FloatToStrEx((3600 * Total[Script_Exp]) / TCounter)); 
+  WriteLn('  Current player:                          ' + Copy(Capitalize(Players[CurrentPlayer].Name), 1, 4));
+  WriteLn('  Player currently:                        ' + Players[CurrentPlayer].Loc);
+  WriteLn('[ ----------------------------------------------------------------------- ]');
+  WriteLn('');
+  WriteLn('<------===== OSI Barbarian Agility Runner ver ' + Script_Version + ' Progress Report =====------>');
+  for I := 0 to High(Players) do
+  begin
+    if (Players[I].Active) then
+      WeAreActive := '  (Active)  -- Laps: '
+    else
+      WeAreActive := ' (InActive) -- Laps: ';
+    WriteLn('  ' + Copy(Capitalize(Players[I].Name), 1, 4) + WeAreActive + FloatToStr(Players[I].Extendeds[Player_Total_Laps]) + ' -- Agility XP gained: ' + FloatToStr(Players[I].Extendeds[Player_Total_Exp]) + ' -- Agility XP: ' + FloatToStr(Players[I].Extendeds[Player_Total_Exp] + Players[I].Extendeds[Player_Initial_Agility_Exp]));
+    WriteLn('   -- Agility Lvls gained: ' + FloatToStr(Players[I].Level[Skill_Agility] - Players[I].Extendeds[Player_Initial_Agility_Lvl ]) + ' -- Agility Lvl: ' + FloatToStr(Players[I].Level[Skill_Agility]) + ' -- Loc: ' + Players[I].Loc);
+  end;
+  WriteLn('[ ----------------------------------------------------------------------- ]');
+  WriteLn('');
+  WriteLn('Displayed progress report.');
+end;
+
+{$IFNDEF DebugIncluded}
+procedure DebugATPA(ATPA: T2DPointArray);
+begin 
+end;
+
+procedure DebugATPABounds(ATPA: T2DPointArray);
+begin 
+end;    
+{$ENDIF}
+
+{*******************************************************************************
+                         BARBARIAN AGILITY COURSE RUNNING                              
+*******************************************************************************}
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+function ClimbLadder(Loc: string; Up: Boolean): Boolean;
+Contributors: Wanted
+Description: Used for climbing the ladder in a location.
+Date Created: October 29th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+function ClimbLadder(Loc: string; Up: Boolean): Boolean;
+var
+  H, I, Attempts, T: Integer;
+  RepeatLadder: Boolean;
+  ATPA: T2DPointArray;
+  TPA: TPointArray;
+  S: string;
+begin
+  Result := False;
+  if (Up) then
+    S := 'up'
+  else
+    S := 'down';
+  WriteLn('Climbing ' + S + ' ' + Loc + ' ladder...');
+  Attempts := 0;
+  repeat
+    Inc(Attempts);
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(0.07, 0.38);
+    FindColorTolExP(TPA, 1850450, MSB, 8);
+    SetColorSpeed2Modifiers(0.2, 0.2);
+    ColorToleranceSpeed(1);
+    ATPA := SplitTPA(TPA, 1);
+    SortATPAByMeanEx(ATPA, MSCP);
+    DebugATPABounds(ATPA);
+    H := High(ATPA);
+    for I := 0 to H do
+    begin
+      if (I > 3) then
+        Continue;
+      if (Length(ATPA[I]) < 8) then
+        Continue;
+      MMouseP(TPAMean(ATPA[I]), 1, 0);
+      if (not (UpTextContainsMulti(['Climb-' + S, S, S + ' Ladder']))) then
+        Continue;
+      MouseCurrentPos(True);
+      Break;
+    end;
+    if ((I > H) and (Attempts > 5)) then 
+    begin
+      ReportScriptUser('Unable to find ' + Loc + ' ladder', 0);
+      Players[CurrentPlayer].Loc := 'Can''t find ' + Loc + ' ladder';
+      Players[CurrentPlayer].Active := False;
+      Exit;  
+    end;
+    if (I > H) then
+    begin
+      WaitRR(1531, 2312);
+      Continue;
+    end;   
+    SetTimer(T, 4012, 5432);
+    RepeatLadder := True;
+    repeat
+      WaitRR(112, 211);
+      if (PercentMMBlack < 85.0) then
+      begin
+        WriteLn('Climbed ' + S + ' ' + Loc + '.');
+        if (HumanCheck) then
+          Exit;
+        Result := True;
+        WaitRR(1521, 1712);
+        Exit;
+      end;    
+    until (CheckTimer(T)); 
+  until (Attempts > 5);
+  ReportScriptUser('Unable to climb ' + Loc + ' ladder', 0);
+  Players[CurrentPlayer].Loc := 'Lost at ' + Loc + ' ladder';
+  Players[CurrentPlayer].Active := False;
+  Exit;            
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure SwingOnRopeSwing;
+Contributors: Wanted
+Description: Completes the first obstacle. Swing-on Ropeswing
+Date Created: October 26th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure SwingOnRopeSwing;
+var
+  I, H, Wi, He, C, T, Attempts: Integer;
+  RepeatRope, OverrideDist: Boolean;
+  ATPA: T2DPointArray;
+  TPA: TPointArray; 
+  P: TPoint;
+  B: TBox;
+begin
+  Attempts := 0; 
+  OverrideDist := False;
+  if (Players[CurrentPlayer].Loc = 'Course end') then
+  begin
+    if (HumanCheck) then
+      Exit; 
+    OverrideDist := True;
+    Players[CurrentPlayer].Loc := 'Ropeswing'; 
+  end; 
+  if ((Players[CurrentPlayer].Loc <> 'Initiated') and (Players[CurrentPlayer].Loc <> 'Ropeswing')) then
+    Exit;
+  repeat
+    Inc(Attempts);
+    if ((Players[CurrentPlayer].Loc <> 'Ropeswing') or (OverrideDist)) then
+    begin
+      FindMMColorExTol(TPA, clBlack, 0);
+      ATPA := SplitTPA(TPA, 1);
+      SortATPASize(ATPA, True);
+      H := High(ATPA);
+      for I := 0 to H do
+      begin
+        TPADimensions(ATPA[I], Wi, He);
+        if (InRange(Wi, 10, 22) and InRange(He, 14, 24)) then
+        begin
+          B := TPABounds(ATPA[I]);
+          P := Point((B.X1 + B.X2) div 2, B.Y1);
+          if ((DistanceP(P, MMCP) > 9) or (OverrideDist))then
+            MouseFlag(P, 0, 0);
+          Players[CurrentPlayer].Loc := 'Ropeswing';
+          Break;
+        end;
+      end;
+      if (Players[CurrentPlayer].Loc <> 'Ropeswing') then
+      begin
+        ReportScriptUser('Unable to walk to Ropeswing', 0);
+        Players[CurrentPlayer].Loc := 'Lost at Ropeswing';
+        Players[CurrentPlayer].Active := False;
+        Exit;        
+      end;
+    end;
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(0.15, 0.00);
+    FindColorTolExP(TPA, 11829, MSB, 2);
+    SetColorSpeed2Modifiers(0.2, 0.2);
+    ColorToleranceSpeed(1);
+    ATPA := SplitTPA(TPA, 1);
+    SortATPASize(ATPA, True);
+    H := High(ATPA);
+    DebugATPA(ATPA);
+    C := CountColorB(clBlack, MCB);
+    for I := 0 to H do
+    begin
+      if (I > 5) then
+        Continue;
+      if (Length(ATPA[I]) < 33) then
+        Continue;
+      P := TPAMean(ATPA[I]);
+      MMouse(P.X, P.Y, 1, 1);
+      if (not (UpTextContainsMulti(['Swin', 'wing', 'ng-on', 'n Ro', 'opeswi']))) then
+        Continue;
+      MouseCurrentPos(True);
+      Break;
+    end;
+    if ((I > H) and (Attempts > 5)) then 
+    begin
+      ReportScriptUser('Unable to find Ropeswing', 0);
+      Players[CurrentPlayer].Loc := 'Can''t find Ropeswing';
+      Players[CurrentPlayer].Active := False;
+      Exit;  
+    end;
+    if (I > H) then
+    begin
+      WaitRR(1531, 2312);
+      Continue;
+    end;
+    SetTimer(T, 4012, 5432);
+    RepeatRope := True;
+    repeat
+      WaitRR(112, 211);
+      if (CountColorB(clBlack, MCB) <> C) then
+      begin
+        if (LeveledUp) then
+          WriteLn('Gained agility level!'); 
+        case CountColorB(clBlack, GetChatLineBounds(7)) of
+          314: begin
+                 WriteLn('You skillfully swing across...');
+                 IncTotalScriptVar(Script_Exp, 22);
+                 IncE(Players[CurrentPlayer].Extendeds[Player_Total_Exp], 22);
+                 if (LeveledUp) then
+                   WriteLn('Gained agility level!');  
+                 RepeatRope := False;
+               end;
+          329: WriteLn('You cannot do that from here. Relocating...');
+          377: begin
+                 WriteLn('You slip and fall to the pit below. Recovering...');
+                 WaitRR(1211, 1432);
+                 if (not (ClimbLadder('Spike pit cellar', True))) then
+                   Exit; 
+               end;     
+        end;
+        Break;    
+      end;  
+    until (CheckTimer(T)); 
+    OverrideDist := True;
+  until ((not (RepeatRope)) or (Attempts > 5));
+  if ((Attempts < 6) and (not (RepeatRope))) then
+  begin
+    if (HumanCheck) then
+      Exit;
+    WriteLn('Ropeswing complete');
+    Players[CurrentPlayer].Loc := 'Log balance';
+    WaitRR(1921, 2112);
+    Exit;
+  end;
+  ReportScriptUser('Unable to complete Ropeswing', 0);
+  Players[CurrentPlayer].Loc := 'Lost at Ropeswing';
+  Players[CurrentPlayer].Active := False;
+  Exit;        
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure WalkAcrossLogBalance;
+Contributors: Wanted
+Description: Completes the second obstacle. Walk-across Log balance
+Date Created: October 28th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure WalkAcrossLogBalance;
+var
+  Attempts, H, I, C, T: Integer;
+  RepeatBalance: Boolean;
+  ATPA: T2DPointArray;
+  TPA: TPointArray;
+  P: TPoint; 
+begin
+  if (Players[CurrentPlayer].Loc <> 'Log balance') then
+    Exit;
+  Attempts := 0; 
+  repeat
+    Inc(Attempts);
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(0.08, 1.59);
+    FindColorTolExP(TPA, 340565, MSB, 7);
+    SetColorSpeed2Modifiers(0.2, 0.2);
+    ColorToleranceSpeed(1);
+    ATPA := GroupTPAEx(TPA, 25, 70);
+    SortATPAByMeanEx(ATPA, Point(MSX2, MSCY));
+    H := High(ATPA);
+    DebugATPABounds(ATPA);
+    C := CountColorB(clBlack, MCB); 
+    for I := 0 to H do
+    begin
+      if (I > 5) then
+        Continue;
+      if (Length(ATPA[I]) < 55) then
+        Continue;
+      P := TPAMean(ATPA[I]);
+      MMouse(P.X, P.Y, 1, 1);
+      if (not (UpTextContainsMulti(['Walk-a', 'across', 'Log b', 'g bal', 'alance']))) then
+        Continue;
+      MouseCurrentPos(True);
+      Break;
+    end;
+    if ((I > H) and (Attempts > 5)) then 
+    begin
+      ReportScriptUser('Unable to find Log balance', 0);
+      Players[CurrentPlayer].Loc := 'Can''t find Log balance';
+      Players[CurrentPlayer].Active := False;
+      Exit;  
+    end;
+    if (I > H) then
+    begin
+      WaitRR(1531, 2312);
+      Continue;
+    end;
+    SetTimer(T, 10012, 11432);
+    RepeatBalance := True;
+    repeat
+      WaitRR(112, 211);
+      if (CountColorB(clBlack, MCB) <> C) then
+      begin
+        if (LeveledUp) then
+          WriteLn('Gained agility level!');  
+        case CountColorB(clBlack, GetChatLineBounds(7)) of
+          417: begin
+                 WriteLn('...You make it safely to the other side');
+                 IncTotalScriptVar(Script_Exp, 13.7);
+                 IncE(Players[CurrentPlayer].Extendeds[Player_Total_Exp], 13.7);
+                 if (LeveledUp) then
+                   WriteLn('Gained agility level!');   
+                 RepeatBalance := False;
+               end;
+          501: begin
+                 WriteLn('You walk carefully across the slippery log...');
+                 C := CountColorB(clBlack, MCB);
+                 Continue; 
+               end;
+          384, 513: begin
+                      WriteLn('You lose your footing and fall into the water...');
+                      WriteLn('Something in the water bites you. Recovering...');
+                      WaitRR(3321, 3512);
+                      if (HumanCheck) then
+                        Exit;
+                    end;       
+        end;
+        Break;    
+      end;  
+    until (CheckTimer(T)); 
+  until ((not (RepeatBalance)) or (Attempts > 5));
+  if ((Attempts < 6) and (not (RepeatBalance))) then
+  begin
+    if (HumanCheck) then
+      Exit;
+    WriteLn('Log balance complete');
+    Players[CurrentPlayer].Loc := 'Obstacle net';
+    WaitRR(1621, 1812);
+    Exit;
+  end;
+  ReportScriptUser('Unable to complete Log balance', 0);
+  Players[CurrentPlayer].Loc := 'Lost at Log balance';
+  Players[CurrentPlayer].Active := False;
+  Exit;   
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure ClimbOverObstacleNet;
+Contributors: Wanted
+Description: Completes the third obstacle. Climb-over Obstacle net
+Date Created: October 28th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure ClimbOverObstacleNet;
+var
+  Attempts, H, I, T: Integer;
+  RepeatClimb: Boolean;
+  ATPA: T2DPointArray;
+  TPA: TPointArray;
+  P: TPoint; 
+begin
+  if (Players[CurrentPlayer].Loc <> 'Obstacle net') then
+    Exit;
+  Attempts := 0; 
+  repeat
+    Inc(Attempts);
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(0.07, 0.09);
+    FindColorTolExP(TPA, 4810348, MSB, 14);
+    SetColorSpeed2Modifiers(0.2, 0.2);
+    ColorToleranceSpeed(1);
+    ATPA := SplitTPA(TPA, 4);
+    SortATPASize(ATPA, True);
+    H := High(ATPA);
+    DebugATPA(ATPA); 
+    for I := 0 to H do
+    begin
+      if (I > 5) then
+        Continue;
+      if (Length(ATPA[I]) < 2) then
+        Continue;
+      P := TPAMean(ATPA[I]);
+      MMouse(P.X, P.Y, 1, 1);
+      if (not (UpTextContainsMulti(['ver O', 'Obstac', 'bstacle', 'le net']))) then
+        Continue;
+      MouseCurrentPos(True);
+      Break;
+    end;
+    if ((I > H) and (Attempts > 5)) then 
+    begin
+      ReportScriptUser('Unable to find Obstacle net', 0);
+      Players[CurrentPlayer].Loc := 'Can''t find Obstacle net';
+      Players[CurrentPlayer].Active := False;
+      Exit;  
+    end;
+    if (I > H) then
+    begin
+      WaitRR(1531, 2312);
+      Continue;
+    end;
+    SetTimer(T, 4012, 5432);
+    RepeatClimb := True;
+    repeat
+      if (LeveledUp) then
+        WriteLn('Gained agility level!'); 
+      WaitRR(112, 211);
+      if (CountColorB(clBlack, GetChatLineBounds(7)) = 250) then
+      begin
+        WriteLn('You climb the netting...');
+        IncTotalScriptVar(Script_Exp, 8.2);
+        IncE(Players[CurrentPlayer].Extendeds[Player_Total_Exp], 8.2);
+        if (LeveledUp) then
+          WriteLn('Gained agility level!');   
+        RepeatClimb := False;
+        Break;
+      end;    
+    until (CheckTimer(T)); 
+  until ((not (RepeatClimb)) or (Attempts > 5));
+  if ((Attempts < 6) and (not (RepeatClimb))) then
+  begin
+    if (HumanCheck) then
+      Exit;
+    WriteLn('Obstacle net complete');
+    Players[CurrentPlayer].Loc := 'Balancing ledge';
+    WaitRR(321, 551);
+    Exit;
+  end;
+  ReportScriptUser('Unable to complete Obstacle net', 0);
+  Players[CurrentPlayer].Loc := 'Lost at Obstacle net';
+  Players[CurrentPlayer].Active := False;
+  Exit;   
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure WalkAcrossBalancingLedge;
+Contributors: Wanted
+Description: Completes the fourth obstacle. Walk-across Balancing ledge
+Date Created: October 28th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure WalkAcrossBalancingLedge;
+var
+  Attempts, H, I, C, T, Wi, He: Integer;
+  RepeatBalance, DoneBalance: Boolean;
+  ATPA: T2DPointArray;
+  TPA: TPointArray;
+  B: TBox; 
+begin
+  if (Players[CurrentPlayer].Loc <> 'Balancing ledge') then
+    Exit;
+  Attempts := 0;
+  RepeatBalance := False; 
+  DoneBalance := False;
+  repeat
+    Inc(Attempts);
+    if (RepeatBalance) then
+    begin
+      FindMMColorExTol(TPA, clBlack, 0);
+      ATPA := SplitTPA(TPA, 1);
+      SortATPASize(ATPA, True);
+      H := High(ATPA);
+      for I := 0 to H do
+      begin
+        TPADimensions(ATPA[I], Wi, He);
+        if (InRange(Wi, 30, 50) and InRange(He, 3, 15)) then
+        begin
+          B := TPABounds(ATPA[I]);
+          MouseFlag(Point(B.X1 - 2, ((B.Y1 + B.Y2) div 2) + 3), 0, 0);
+          WaitRR(541, 657); 
+          Players[CurrentPlayer].Loc := 'Obstacle net';
+          ClimbOverObstacleNet;
+          RepeatBalance := False;
+          Break;
+        end;
+      end;
+      if (I > H) then
+      begin
+        ReportScriptUser('Unable to walk to Obstacle net', 0);
+        Players[CurrentPlayer].Loc := 'Lost at Obstacle net';
+        Players[CurrentPlayer].Active := False;
+        Exit;         
+      end;
+      if (Players[CurrentPlayer].Loc <> 'Balancing ledge') then
+        Exit;        
+    end;
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(0.15, 3.81);
+    FindColorTolExP(TPA, 535358, MSB, 6);
+    SetColorSpeed2Modifiers(0.2, 0.2);
+    ColorToleranceSpeed(1);
+    ATPA := GroupTPAEx(TPA, 15, 25);
+    SortATPAByMeanEx(ATPA, Point(194, 154));
+    H := High(ATPA);
+    DebugATPABounds(ATPA);
+    C := CountColorB(clBlack, MCB); 
+    for I := 0 to H do
+    begin
+      if (I > 5) then
+        Continue;
+      if (Length(ATPA[I]) < 40) then
+        Continue;
+      MMouseP(TPAMean(ATPA[I]), 1, 1);
+      if (not (UpTextContainsMulti(['Walk-a', 'across', 'Balanc', 'cing l', 'g ledge']))) then
+        Continue;
+      MouseCurrentPos(True);
+      Break;
+    end;
+    if ((I > H) and (Attempts > 5)) then 
+    begin
+      ReportScriptUser('Unable to find Balancing ledge', 0);
+      Players[CurrentPlayer].Loc := 'Can''t find Balancing ledge';
+      Players[CurrentPlayer].Active := False;
+      Exit;  
+    end;
+    if (I > H) then
+    begin
+      WaitRR(1531, 2312);
+      Continue;
+    end;
+    SetTimer(T, 4012, 5432);
+    RepeatBalance := True;
+    repeat
+      WaitRR(112, 211);
+      if (CountColorB(clBlack, MCB) <> C) then
+      begin
+        if (LeveledUp) then
+          WriteLn('Gained agility level!');   
+        case CountColorB(clBlack, GetChatLineBounds(7)) of
+          419: begin
+                 WriteLn('...You skillfully edge across the gap.');
+                 IncTotalScriptVar(Script_Exp, 22);
+                 IncE(Players[CurrentPlayer].Extendeds[Player_Total_Exp], 22);
+                 if (LeveledUp) then
+                   WriteLn('Gained agility level!');   
+                 RepeatBalance := False;
+                 DoneBalance := True;
+               end;
+          453: begin
+                 WriteLn('You slip and fall onto the spikes below...');
+                 WaitRR(3321, 3512);
+                if (HumanCheck) then
+                  Exit;
+               end;  
+          619: begin
+                 WriteLn('You put your foot on the ledge and try to edge across...');
+                 C := CountColorB(clBlack, MCB);
+                 Continue; 
+               end;     
+        end;
+        Break;    
+      end;  
+    until (CheckTimer(T)); 
+  until ((DoneBalance) or (Attempts > 5));
+  if ((Attempts < 6) and (DoneBalance)) then
+  begin
+    if (HumanCheck) then
+      Exit;
+    WriteLn('Balancing ledge complete');
+    Players[CurrentPlayer].Loc := 'Balancing ledge room';
+    WaitRR(1321, 1512);
+    Exit;
+  end;
+  ReportScriptUser('Unable to complete Balancing ledge', 0);
+  Players[CurrentPlayer].Loc := 'Lost at Balancing ledge';
+  Players[CurrentPlayer].Active := False;
+  Exit;   
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure WalkToCrumblingWall;
+Contributors: Wanted
+Description: Walks to the final obstacle. Climb-over Crumbling wall
+Date Created: October 28th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure WalkToCrumblingWall;
+var
+  dtmWall: Integer;
+  E: Extended;
+  P: TPoint;
+begin
+  if (Players[CurrentPlayer].Loc = 'Balancing ledge room') then
+    if (ClimbLadder(Players[CurrentPlayer].Loc, False)) then
+      Players[CurrentPlayer].Loc := 'Balancing ledge room exit';
+  if (Players[CurrentPlayer].Loc <> 'Balancing ledge room exit') then
+    Exit;
+  WriteLn('Walking to first Crumbling wall...'); 
+  dtmWall := DTMFromString('78DA636C66626008664001B5ED9E0CFF81342' + 
+           '310FF0702C6054035051039162475CA503520C00832C71555CD93' + 
+           'AFAF51D59400D5E41050D302549345404D27504D14116A0208A89' + 
+           '90A541349841A02E60000DFB3230C');
+  if (FindDTMRotatedP(dtmWall, P, MMB, Radians(-15), Radians(15), Radians(1), E)) then
+  begin
+    MouseFlag(Point(P.X + 3, P.Y + 3), 0, 0);
+    if (HumanCheck) then
+      Exit;
+    Players[CurrentPlayer].Loc := 'Crumbling wall';
+    WriteLn('Walked to first Crumbling wall.'); 
+  end;
+  if (Players[CurrentPlayer].Loc <> 'Crumbling wall') then
+  begin
+    ReportScriptUser('Unable to walk to first Crumbling wall', 0);
+    Players[CurrentPlayer].Loc := 'Lost walking to first Crumbling wall';
+    Players[CurrentPlayer].Active := False;      
+  end;
+  FreeDTM(dtmWall);
+end;
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+procedure ClimbOverCrumblingWalls;
+Contributors: Wanted
+Description: Completes the final obstacle. Cimb-over Crumbling wall. All 3 of them 
+Date Created: October 28th, 2014. By Wanted. RS07 Build ???.
+Last Modified: October 30th, 2014. By Wanted. RS07 Build ???.
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+
+procedure ClimbOverCrumblingWalls;
+var
+  Attempts, H, I, C, T, ClimbsDone: Integer;
+  ATPA: T2DPointArray;
+  TPA: TPointArray;
+begin
+  if (Players[CurrentPlayer].Loc <> 'Crumbling wall') then
+    Exit;
+  WriteLn('Climbing over crumbling walls...');
+  Attempts := 0; 
+  ClimbsDone := 0;
+  repeat
+    Inc(Attempts);
+    ColorToleranceSpeed(2);
+    SetColorSpeed2Modifiers(0.34, 0.11);
+    if (ClimbsDone = 0) then
+      FindColorTolExP(TPA, 7237495, MSB, 7)
+    else
+      FindColorTolEx(TPA, 7237495, MSCX, MSY1, MSX2, MSY2, 7);
+    TPAFilterBoxes(TPA, [Box(MSCX - 35, MSCY - 45, MSCX + 20, MSCY + 35)]);
+    SetColorSpeed2Modifiers(0.2, 0.2);
+    ColorToleranceSpeed(1);
+    ATPA := SplitTPA(TPA, 2);
+    if (ClimbsDone = 0) then
+      SortATPAByMeanEx(ATPA, Point(MSCX + 10, MSCY))
+    else
+      SortATPAByMeanEx(ATPA, Point(MSCX + 80, MSCY));
+    H := High(ATPA);
+    DebugATPABounds(ATPA);
+    C := CountColor(clBlack, MCX1, MCY1 + 35, MCX2, MCY2);
+    for I := 0 to H do
+    begin
+      if (I > 5) then
+        Continue;
+      if (Length(ATPA[I]) < 10) then
+        Continue;
+      MMouseP(TPAMean(ATPA[I]), 0, 0);
+      WaitRR(50, 100);
+      if (not (UpTextContainsMulti(['Climb-o', 'b-over', 'Crumblin', 'rumbling', 'g wall']))) then
+        Continue;
+      MouseCurrentPos(True);
+      Break;
+    end;
+    if ((I > H) and (Attempts > 5)) then 
+    begin
+      ReportScriptUser('Unable to find Crumbling wall', 0);
+      Players[CurrentPlayer].Loc := 'Can''t find Crumbling wall';
+      Players[CurrentPlayer].Active := False;
+      Exit;  
+    end;
+    if (I > H) then
+    begin
+      WaitRR(1531, 2312);
+      Continue;
+    end;
+    SetTimer(T, 4012, 5432);
+    repeat
+      WaitRR(112, 211);
+      if (CountColor(clBlack, MCX1, MCY1 + 35, MCX2, MCY2) <> C) then
+      begin
+         if (LeveledUp) then
+          WriteLn('Gained agility level!'); 
+        if (CountColorB(clBlack, GetChatLineBounds(7)) = 247) then
+         begin
+           WriteLn('You climb the low wall..');
+           IncTotalScriptVar(Script_Exp, 13.7);
+           IncE(Players[CurrentPlayer].Extendeds[Player_Total_Exp], 13.7);
+           if (LeveledUp) then
+             WriteLn('Gained agility level!'); 
+           Inc(ClimbsDone);
+           if (ClimbsDone = 3) then
+           begin
+             IncTotalScriptVar(Script_Exp, 46.2);
+             IncE(Players[CurrentPlayer].Extendeds[Player_Total_Exp], 46.2);         
+           end;
+           WaitRR(1823, 2014);
+           Attempts := 0;
+           Break;
+         end;            
+      end;  
+    until (CheckTimer(T));
+  until ((Attempts > 5) or (ClimbsDone > 2));
+  if (ClimbsDone > 2) then
+  begin
+    WriteLn('Crumbling walls complete');
+    if (HumanCheck) then
+      Exit;
+    Players[CurrentPlayer].Loc := 'Course end';
+    WaitRR(1321, 1512);
+    Exit;
+  end;
+  ReportScriptUser('Unable to complete Balancing ledge', 0);
+  Players[CurrentPlayer].Loc := 'Lost at Balancing ledge';
+  Players[CurrentPlayer].Active := False;
+  Exit;  
+end;
+
+{*******************************************************************************
+                                   MAIN LOOP
+*******************************************************************************}
+
+procedure MainLoop;
+var
+  TripsThisRound: Integer;
+begin
+  repeat
+    TripsThisRound := 0;
+    if (AllPlayersInActive) then
+      Break;
+    if (Players[CurrentPlayer].Active) then
+      InitPlayer;
+    repeat
+      SwingOnRopeSwing;
+      WalkAcrossLogBalance;
+      ClimbOverObstacleNet;
+      WalkAcrossBalancingLedge;
+      WalkToCrumblingWall;
+      ClimbOverCrumblingWalls;
+      Players[CurrentPlayer].Active := (Players[CurrentPlayer].Loc = 'Course end');
+      if (Players[CurrentPlayer].Active) then
+      begin
+        IncTotalScriptVar(Script_Laps, 1);
+        IncE(Players[CurrentPlayer].Extendeds[Player_Total_Laps], 1);
+        Inc(TripsThisRound);
+      end;
+      ProgressReport;
+    until ((not (Players[CurrentPlayer].Active)) or ((TripsThisRound >= Players[CurrentPlayer].Extendeds[Player_Laps_Per_Round]) and (ActivePlayers > 1)));
+    if (AllPlayersInActive) then
+      Break;
+    Players[CurrentPlayer].Active := LoggedIn;  
+    NextPlayer(Players[CurrentPlayer].Active);  
+  until (AllPlayersInActive);
+end;
+
+begin
+  InitScript;
+  MainLoop;
+  WriteLn('All players exhausted.');
+  TerminateScript; 
+end.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//Script OSI Barbarian Agility by Wanted http://scar-divi.com
