@@ -2,7 +2,7 @@
 # ScriptName   = OSI Barbarian Agility
 # Author       = Wanted
 # Description  = Runs Barbarian Agility Course. Auto-eater. ~13k xp/h
-# Version      = 1.02
+# Version      = 1.03
 # Date         = October 30th, 2014
 
 # Comments     = Drag and drop cross hairs to runescape.
@@ -10,7 +10,7 @@
                  If you're using OSBuddy you may need to turn off screen overlays.
                  Settings tab make sure you're on brightest color settings.
                  Have on split private chat or off as game only chat view is needed.
-                 Make sure you set DeclarePlayers (line 90), adjust the other settings (line 30).
+                 Make sure you set DeclarePlayers (line 89), adjust the other settings (line 32).
 
 # Requirements = SCAR 3.40.0 or newer
                  Latest OSI 
@@ -48,7 +48,7 @@ const
 *******************************************************************************}
 
 const // Don't change these
-  Script_Version = '1.02';
+  Script_Version = '1.03';
   Script_Runs = 0;
   Script_Time = 1;
   Script_Laps = 2;
@@ -84,7 +84,6 @@ begin
     SetLength(Players[I].TIA, 1);
     SetLength(Players[I].Extendeds, 11); 
   end;
-
   with Players[0] do
   begin
     Name := '';                    // Characters full RS login username.
@@ -443,60 +442,61 @@ begin
   end;
   BreakIfNeeded; 
   CurrentHP := GetMMLevel(Skill_Hitpoints);
-  if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) <= MinHPLeft) then
-  begin
-    if (SetGameTab(Tab_Inv)) then
-      repeat
-        if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
-          Break;
-        BackToStart := False; 
-        for I := 0 to 27 do
-        begin
-          if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
-            Break;
-           if (TIAContains(Players[CurrentPlayer].TIA[0], I)) then
-             Continue;       
-          if (InvItemExists(I, False)) then
-            repeat
-              if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
-                Break;
-              MouseInvItem(I, MoveTo, False);
-              if (not (UpTextContains('Eat'))) then
-              begin
-                SetLength(Players[CurrentPlayer].TIA[0], Length(Players[CurrentPlayer].TIA[0]) + 1);
-                Players[CurrentPlayer].TIA[0][High(Players[CurrentPlayer].TIA[0])] := I;
-                Break;      
-              end;
-              C := InvCount(False);
-              PreviousHP := CurrentHP;
-              MouseCurrentPos(True);
-              SetTimer(T, 3000, 4000);
-              WaitRR(812, 903);
-              repeat
-                WaitRR(50, 100);
-                CurrentHP := GetMMLevel(Skill_Hitpoints);
-                if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
-                  Break;
-              until ((CheckTimer(T)) or (CurrentHP <> PreviousHP) or (not (InvItemExists(I, False))));
-              if (InvCount(False) = C) then
-              begin
-                BackToStart := True;
-                Break;
-              end;
-            until (((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) or (not (InvItemExists(I, False))));
-          if (BackToStart) then
-            Break;       
-        end;            
-      until (not (BackToStart));      
+  if (EatFood) then
     if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) <= MinHPLeft) then
     begin
-      ReportScriptUser('Player out of food!', 0);
-      Players[CurrentPlayer].Loc := 'Player out of food!';
-      Result := True;       
-    end; 
-    if (Random(5) < 2) then
-      AntiBan;    
-  end;
+      if (SetGameTab(Tab_Inv)) then
+        repeat
+          if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
+            Break;
+          BackToStart := False; 
+          for I := 0 to 27 do
+          begin
+            if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
+              Break;
+             if (TIAContains(Players[CurrentPlayer].TIA[0], I)) then
+               Continue;       
+            if (InvItemExists(I, False)) then
+              repeat
+                if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
+                  Break;
+                MouseInvItem(I, MoveTo, False);
+                if (not (UpTextContains('Eat'))) then
+                begin
+                  SetLength(Players[CurrentPlayer].TIA[0], Length(Players[CurrentPlayer].TIA[0]) + 1);
+                  Players[CurrentPlayer].TIA[0][High(Players[CurrentPlayer].TIA[0])] := I;
+                  Break;      
+                end;
+                C := InvCount(False);
+                PreviousHP := CurrentHP;
+                MouseCurrentPos(True);
+                SetTimer(T, 3000, 4000);
+                WaitRR(812, 903);
+                repeat
+                  WaitRR(50, 100);
+                  CurrentHP := GetMMLevel(Skill_Hitpoints);
+                  if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) then
+                    Break;
+                until ((CheckTimer(T)) or (CurrentHP <> PreviousHP) or (not (InvItemExists(I, False))));
+                if (InvCount(False) = C) then
+                begin
+                  BackToStart := True;
+                  Break;
+                end;
+              until (((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) >= MaxHPLeft) or (not (InvItemExists(I, False))));
+            if (BackToStart) then
+              Break;       
+          end;            
+        until (not (BackToStart));      
+      if ((CurrentHP / Players[CurrentPlayer].Level[Skill_Hitpoints]) <= MinHPLeft) then
+      begin
+        ReportScriptUser('Player out of food!', 0);
+        Players[CurrentPlayer].Loc := 'Player out of food!';
+        Result := True;       
+      end; 
+      if (Random(5) < 2) then
+        AntiBan;    
+    end;
   if (Players[CurrentPlayer].Worked > (Players[CurrentPlayer].Extendeds[Player_Max_Time] * 60 * 60 * 1000)) then
   begin
     ReportScriptUser('Player time limit reached!', 2);
@@ -668,7 +668,9 @@ begin
         if (HumanCheck) then
           Exit;
         Result := True;
-        WaitRR(1521, 1712);
+        Flag;
+        if (Up) then
+          WaitRR(1521, 1712);
         Exit;
       end;    
     until (CheckTimer(T)); 
@@ -794,7 +796,8 @@ begin
                  WriteLn('You slip and fall to the pit below. Recovering...');
                  WaitRR(1211, 1432);
                  if (not (ClimbLadder('Spike pit cellar', True))) then
-                   Exit; 
+                   Exit;
+                 WaitRR(1011, 1232);   
                end;     
         end;
         Break;    
@@ -1097,8 +1100,7 @@ begin
       WaitRR(1531, 2312);
       Continue;
     end;
-    SetTimer(T, 4012, 5432);
-    RepeatBalance := True;
+    SetTimer(T, 5012, 6432);
     repeat
       WaitRR(112, 211);
       if (CountColorB(clBlack, MCB) <> C) then
@@ -1118,8 +1120,9 @@ begin
           453: begin
                  WriteLn('You slip and fall onto the spikes below...');
                  WaitRR(3321, 3512);
-                if (HumanCheck) then
-                  Exit;
+                 RepeatBalance := True;
+                 if (HumanCheck) then
+                   Exit;
                end;  
           619: begin
                  WriteLn('You put your foot on the ledge and try to edge across...');
@@ -1167,23 +1170,20 @@ begin
     Exit;
   WriteLn('Walking to first Crumbling wall...'); 
   dtmWall := DTMFromString('78DA636C66626008664001B5ED9E0CFF81342' + 
-           '310FF0702C6054035051039162475CA503520C00832C71555CD93' + 
+           '310FF0702C6054035051039362475BA503520C00832C71555CD93' + 
            'AFAF51D59400D5E41050D302549345404D27504D14116A0208A89' + 
-           '90A541349841A02E60000DFB3230C');
+           '90A541349841A02E600001442236C');
   if (FindDTMRotatedP(dtmWall, P, MMB, Radians(-15), Radians(15), Radians(1), E)) then
+    MouseFlag(Point(P.X + 3, P.Y + 3), 0, 0)
+  else
   begin
-    MouseFlag(Point(P.X + 3, P.Y + 3), 0, 0);
-    if (HumanCheck) then
-      Exit;
-    Players[CurrentPlayer].Loc := 'Crumbling wall';
-    WriteLn('Walked to first Crumbling wall.'); 
+    WriteLn('Failed to find dtmWall! Reverting to blind click!');
+    MouseFlag(Point(655, 60), 2, 2);
   end;
-  if (Players[CurrentPlayer].Loc <> 'Crumbling wall') then
-  begin
-    ReportScriptUser('Unable to walk to first Crumbling wall', 0);
-    Players[CurrentPlayer].Loc := 'Lost walking to first Crumbling wall';
-    Players[CurrentPlayer].Active := False;      
-  end;
+  if (HumanCheck) then
+    Exit;
+  Players[CurrentPlayer].Loc := 'Crumbling wall';
+  WriteLn('Walked to first Crumbling wall.'); 
   FreeDTM(dtmWall);
 end;
 
@@ -1270,7 +1270,8 @@ begin
              IncTotalScriptVar(Script_Exp, 46.2);
              IncE(Players[CurrentPlayer].Extendeds[Player_Total_Exp], 46.2);         
            end;
-           WaitRR(1823, 2014);
+           if (ClimbsDone <> 3) then
+             WaitRR(1823, 2014);
            Attempts := 0;
            Break;
          end;            
@@ -1283,7 +1284,6 @@ begin
     if (HumanCheck) then
       Exit;
     Players[CurrentPlayer].Loc := 'Course end';
-    WaitRR(1321, 1512);
     Exit;
   end;
   ReportScriptUser('Unable to complete Balancing ledge', 0);
