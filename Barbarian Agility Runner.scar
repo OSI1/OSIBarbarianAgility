@@ -2,7 +2,7 @@
 # ScriptName   = OSI Barbarian Agility
 # Author       = Wanted
 # Description  = Runs Barbarian Agility Course. Auto-eater. ~13k xp/h
-# Version      = 1.01
+# Version      = 1.02
 # Date         = October 30th, 2014
 
 # Comments     = Drag and drop cross hairs to runescape.
@@ -48,7 +48,7 @@ const
 *******************************************************************************}
 
 const // Don't change these
-  Script_Version = '1.01';
+  Script_Version = '1.02';
   Script_Runs = 0;
   Script_Time = 1;
   Script_Laps = 2;
@@ -558,7 +558,7 @@ begin
   WriteLn('                 Script run # ' + FloatToStr(TotalScript[Script_Runs]) + ' - ' + TheDate(0) + ' - ' + TheTime + '.');
   WriteLn('  Total run time:                          ' + STimeRunning);
   if (TotalScript[Script_Runs] > 1) then
-    WriteLn('  Total run time using script:             ' + MSToTime(Round(TotalScript[Script_Time])));
+    WriteLn('  Total run time using script:             ' + MSToTime(Round(TotalScript[Script_Time] + TimeSinceMark(TimeStarted))));
   WriteLn('  Laps done this script run:               ' + FloatToStr(Total[Script_Laps]));
   if (TotalScript[Script_Runs] > 1) then
     WriteLn('  Laps done using script:                  ' + FloatToStr(TotalScript[Script_Laps]));                                                 
